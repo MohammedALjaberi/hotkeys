@@ -409,6 +409,8 @@ export interface HotkeyOptions {
   requireReset?: boolean
   /** Whether the hotkey is enabled. Defaults to true */
   enabled?: boolean
+  /** The DOM element to attach the event listener to. Defaults to document. */
+  target?: HTMLElement | Document | Window | null
 }
 
 // =============================================================================
@@ -455,4 +457,6 @@ export interface HotkeyRegistration {
   options: HotkeyOptions
   /** Whether this registration has fired and needs reset (for requireReset) */
   hasFired: boolean
+  /** The resolved target element for this registration */
+  target: HTMLElement | Document | Window
 }

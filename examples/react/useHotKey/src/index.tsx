@@ -15,6 +15,21 @@ function App() {
   const [multiModifierCount, setMultiModifierCount] = React.useState(0)
   const [editingKeyCount, setEditingKeyCount] = React.useState(0)
 
+  // Scoped shortcuts state
+  const [modalOpen, setModalOpen] = React.useState(false)
+  const [editorContent, setEditorContent] = React.useState('')
+  const [sidebarShortcutCount, setSidebarShortcutCount] = React.useState(0)
+  const [modalShortcutCount, setModalShortcutCount] = React.useState(0)
+  const [editorShortcutCount, setEditorShortcutCount] = React.useState(0)
+
+  // Refs for scoped shortcuts
+  const sidebarRef = React.useRef<HTMLDivElement>(null)
+  const modalRef = React.useRef<HTMLDivElement>(null)
+  const editorRef = React.useRef<HTMLTextAreaElement>(null)
+
+  // Type-safe refs for useHotkey (HTMLTextAreaElement extends HTMLElement)
+  const editorRefForHotkey = editorRef as React.RefObject<HTMLElement | null>
+
   // ============================================================================
   // Basic Hotkeys
   // ============================================================================
@@ -253,6 +268,89 @@ function App() {
     setLastHotkey('F12')
     setFunctionKeyCount((c) => c + 1)
   })
+
+  // ============================================================================
+  // Scoped Keyboard Shortcuts
+  // ============================================================================
+
+  // Scoped to sidebar - only works when sidebar is focused or contains focus
+  useHotkey(
+    'Mod+B',
+    () => {
+      setLastHotkey('Mod+B')
+      setSidebarShortcutCount((c) => c + 1)
+      alert(
+        'Sidebar shortcut triggered! This only works when the sidebar area is focused.',
+      )
+    },
+    { target: sidebarRef },
+  )
+
+  useHotkey(
+    'Mod+N',
+    () => {
+      setLastHotkey('Mod+N')
+      setSidebarShortcutCount((c) => c + 1)
+    },
+    { target: sidebarRef },
+  )
+
+  // Scoped to modal - only works when modal is open and focused
+  useHotkey(
+    'Escape',
+    () => {
+      setLastHotkey('Escape')
+      setModalShortcutCount((c) => c + 1)
+      setModalOpen(false)
+    },
+    { target: modalRef, enabled: modalOpen },
+  )
+
+  useHotkey(
+    'Mod+Enter',
+    () => {
+      setLastHotkey('Mod+Enter')
+      setModalShortcutCount((c) => c + 1)
+      alert('Modal submit shortcut!')
+    },
+    { target: modalRef, enabled: modalOpen },
+  )
+
+  // Scoped to editor - only works when editor is focused
+  useHotkey(
+    'Mod+S',
+    () => {
+      setLastHotkey('Mod+S')
+      setEditorShortcutCount((c) => c + 1)
+      alert(
+        `Editor content saved: "${editorContent.substring(0, 50)}${editorContent.length > 50 ? '...' : ''}"`,
+      )
+    },
+    { target: editorRefForHotkey },
+  )
+
+  useHotkey(
+    'Mod+/',
+    () => {
+      setLastHotkey('Mod+/')
+      setEditorShortcutCount((c) => c + 1)
+      setEditorContent((prev) => prev + '\n// Comment added via shortcut')
+    },
+    { target: editorRefForHotkey },
+  )
+
+  useHotkey(
+    'Mod+K',
+    () => {
+      setLastHotkey('Mod+K')
+      setEditorShortcutCount((c) => c + 1)
+      setEditorContent('')
+    },
+    {
+      target: editorRefForHotkey,
+      stopPropagation: true, // prevent the event from bubbling up to the parent elements
+    },
+  )
 
   return (
     <div className="app">
@@ -500,6 +598,145 @@ useHotkey('Mod+Space', () => toggle())`}</pre>
         <p className="hint">
           Press <kbd>Escape</kbd> to reset all counters
         </p>
+
+        {/* ==================================================================== */}
+        {/* Scoped Keyboard Shortcuts Section */}
+        {/* ==================================================================== */}
+        <section className="demo-section scoped-section">
+          <h2>Scoped Keyboard Shortcuts</h2>
+          <p>
+            Shortcuts can be scoped to specific DOM elements using the{' '}
+            <code>target</code> option. This allows different shortcuts to work
+            in different parts of your application.
+          </p>
+
+          <div className="scoped-grid">
+            {/* Sidebar Example */}
+            <div className="scoped-area" ref={sidebarRef} tabIndex={0}>
+              <h3>Sidebar (Scoped Area)</h3>
+              <p>Click here to focus, then try:</p>
+              <div className="hotkey-list">
+                <div>
+                  <kbd>{formatForDisplay('Mod+B')}</kbd> — Trigger sidebar
+                  action
+                </div>
+                <div>
+                  <kbd>{formatForDisplay('Mod+N')}</kbd> — New item
+                </div>
+              </div>
+              <div className="counter">
+                Sidebar shortcuts: {sidebarShortcutCount}x
+              </div>
+              <p className="hint">
+                These shortcuts only work when this sidebar area is focused or
+                contains focus.
+              </p>
+            </div>
+
+            {/* Modal Example */}
+            <div className="scoped-area">
+              <h3>Modal Dialog</h3>
+              <button onClick={() => setModalOpen(true)}>Open Modal</button>
+              {modalOpen && (
+                <div
+                  className="modal-overlay"
+                  onClick={() => setModalOpen(false)}
+                >
+                  <div
+                    className="modal-content"
+                    ref={modalRef}
+                    tabIndex={0}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3>Modal Dialog (Scoped)</h3>
+                    <p>Try these shortcuts while modal is open:</p>
+                    <div className="hotkey-list">
+                      <div>
+                        <kbd>{formatForDisplay('Escape')}</kbd> — Close modal
+                      </div>
+                      <div>
+                        <kbd>{formatForDisplay('Mod+Enter')}</kbd> — Submit
+                      </div>
+                    </div>
+                    <div className="counter">
+                      Modal shortcuts: {modalShortcutCount}x
+                    </div>
+                    <p className="hint">
+                      These shortcuts only work when the modal is open and
+                      focused. The Escape key here won't conflict with the
+                      global Escape handler.
+                    </p>
+                    <button onClick={() => setModalOpen(false)}>Close</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Editor Example */}
+            <div className="scoped-area">
+              <h3>Text Editor (Scoped)</h3>
+              <p>Focus the editor below and try:</p>
+              <div className="hotkey-list">
+                <div>
+                  <kbd>{formatForDisplay('Mod+S')}</kbd> — Save editor content
+                </div>
+                <div>
+                  <kbd>{formatForDisplay('Mod+/')}</kbd> — Add comment
+                </div>
+                <div>
+                  <kbd>{formatForDisplay('Mod+K')}</kbd> — Clear editor
+                </div>
+              </div>
+              <textarea
+                ref={editorRef}
+                className="scoped-editor"
+                value={editorContent}
+                onChange={(e) => setEditorContent(e.target.value)}
+                placeholder="Focus here and try the shortcuts above..."
+                rows={8}
+              />
+              <div className="counter">
+                Editor shortcuts: {editorShortcutCount}x
+              </div>
+              <p className="hint">
+                These shortcuts only work when the editor is focused. Notice
+                that <kbd>{formatForDisplay('Mod+S')}</kbd> here doesn't
+                conflict with the global <kbd>{formatForDisplay('Mod+S')}</kbd>{' '}
+                shortcut.
+              </p>
+            </div>
+          </div>
+
+          <pre className="code-block">{`// Scoped to a ref
+const sidebarRef = useRef<HTMLDivElement>(null)
+
+useHotkey(
+  'Mod+B',
+  () => {
+    console.log('Sidebar shortcut!')
+  },
+  { target: sidebarRef }
+)
+
+// Scoped to a modal (only when open)
+const modalRef = useRef<HTMLDivElement>(null)
+const [isOpen, setIsOpen] = useState(false)
+
+useHotkey(
+  'Escape',
+  () => setIsOpen(false),
+  { target: modalRef, enabled: isOpen }
+)
+
+// Scoped to an editor
+const editorRef = useRef<HTMLTextAreaElement>(null)
+
+useHotkey(
+  'Mod+S',
+  () => saveEditorContent(),
+  { target: editorRef }
+)`}</pre>
+        </section>
       </main>
     </div>
   )

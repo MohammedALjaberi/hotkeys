@@ -7,9 +7,17 @@ import type {
   ParsedHotkey,
 } from '@tanstack/keys'
 
-export interface UseHotkeyOptions extends Omit<HotkeyOptions, 'enabled'> {
+export interface UseHotkeyOptions extends Omit<HotkeyOptions, 'enabled' | 'target'> {
   /** Whether the hotkey is enabled. Defaults to true. */
   enabled?: boolean
+  /** The DOM element or React ref to attach the event listener to. Defaults to document. */
+  target?:
+  | React.RefObject<HTMLElement | null>
+  | HTMLElement
+  | Document
+  | Window
+  | null
+  | undefined
 }
 
 /**
@@ -68,8 +76,14 @@ export function useHotkey(
   const { enabled = true, ...hotkeyOptions } = options
 
   // Extract options for stable dependencies
-  const { preventDefault, stopPropagation, platform, eventType, requireReset } =
-    hotkeyOptions
+  const {
+    preventDefault,
+    stopPropagation,
+    platform,
+    eventType,
+    requireReset,
+    target,
+  } = hotkeyOptions
 
   // Use refs to keep callback and hotkey stable across renders
   const callbackRef = useRef(callback)
@@ -81,9 +95,61 @@ export function useHotkey(
   // Serialize hotkey for dependency comparison
   const hotkeyKey = typeof hotkey === 'string' ? hotkey : JSON.stringify(hotkey)
 
+  // Resolve target for dependency tracking
+  // For refs, we need to check current value, but we can't put ref.current in deps directly
+  // So we'll resolve it inside the effect and track the resolved value
+  const targetRef = useRef(target)
+  targetRef.current = target
+
+  // Track resolved target to detect when ref.current changes
+  const resolvedTargetRef = useRef<HTMLElement | Document | Window | null>(
+    null,
+  )
+
   useEffect(() => {
     if (!enabled) {
       return
+    }
+
+    // Resolve target: handle refs, elements, or default to document
+    let resolvedTarget: HTMLElement | Document | Window | null = null
+
+    const currentTarget = targetRef.current
+
+    if (currentTarget) {
+      // Check if it's a React ref
+      if (
+        typeof currentTarget === 'object' &&
+        'current' in currentTarget &&
+        currentTarget.current !== null &&
+        currentTarget.current instanceof HTMLElement
+      ) {
+        resolvedTarget = currentTarget.current
+      } else if (
+        currentTarget instanceof HTMLElement ||
+        currentTarget === document ||
+        currentTarget === window
+      ) {
+        // It's already a DOM element
+        resolvedTarget = currentTarget
+      }
+    }
+
+    // Default to document if no target provided or ref is null
+    if (!resolvedTarget && typeof document !== 'undefined') {
+      resolvedTarget = document
+    }
+
+    // Skip if target is still null (SSR)
+    if (!resolvedTarget) {
+      return
+    }
+
+    // Check if target has changed (important for refs)
+    const previousTarget = resolvedTargetRef.current
+    if (previousTarget === resolvedTarget && previousTarget !== null) {
+      // Target hasn't changed, but we still need to re-register if other deps changed
+      // This will be handled by the unregister/register cycle below
     }
 
     const hotkeyValue = hotkeyRef.current
@@ -96,7 +162,10 @@ export function useHotkey(
 
     // Build options object, only including defined values to avoid
     // overwriting manager defaults with undefined
-    const registerOptions: HotkeyOptions = { enabled: true }
+    const registerOptions: HotkeyOptions = {
+      enabled: true,
+      target: resolvedTarget,
+    } as HotkeyOptions
     if (preventDefault !== undefined)
       registerOptions.preventDefault = preventDefault
     if (stopPropagation !== undefined)
@@ -111,6 +180,9 @@ export function useHotkey(
       registerOptions,
     )
 
+    // Track the resolved target
+    resolvedTargetRef.current = resolvedTarget
+
     return unregister
   }, [
     enabled,
@@ -120,6 +192,11 @@ export function useHotkey(
     eventType,
     requireReset,
     hotkeyKey,
+    // Note: For refs, changes to ref.current won't trigger this effect.
+    // This is a React limitation - refs don't trigger re-renders.
+    // Users should ensure their component re-renders when ref.current changes
+    // if they need the hotkey to update (e.g., by using state).
+    target,
   ])
 }
 

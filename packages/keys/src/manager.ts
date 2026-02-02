@@ -41,9 +41,18 @@ export class HotkeyManager {
   private static instance: HotkeyManager | null = null
 
   private registrations: Map<string, HotkeyRegistration> = new Map()
-  private keydownListener: ((event: KeyboardEvent) => void) | null = null
-  private keyupListener: ((event: KeyboardEvent) => void) | null = null
   private platform: 'mac' | 'windows' | 'linux'
+  private targetListeners: Map<
+    HTMLElement | Document | Window,
+    {
+      keydown: (event: KeyboardEvent) => void
+      keyup: (event: KeyboardEvent) => void
+    }
+  > = new Map()
+  private targetRegistrations: Map<
+    HTMLElement | Document | Window,
+    Set<string>
+  > = new Map()
 
   private constructor() {
     this.platform = detectPlatform()
@@ -86,6 +95,10 @@ export class HotkeyManager {
     const platform = options.platform ?? this.platform
     const parsedHotkey = parseHotkey(hotkey, platform)
 
+    // Resolve target: default to document if not provided or null
+    const target =
+      options.target ?? (typeof document !== 'undefined' ? document : ({} as Document))
+
     const registration: HotkeyRegistration = {
       id,
       hotkey,
@@ -101,10 +114,19 @@ export class HotkeyManager {
         platform,
       },
       hasFired: false,
+      target,
     }
 
     this.registrations.set(id, registration)
-    this.ensureListeners()
+
+    // Track registration for this target
+    if (!this.targetRegistrations.has(target)) {
+      this.targetRegistrations.set(target, new Set())
+    }
+    this.targetRegistrations.get(target)!.add(id)
+
+    // Ensure listeners are attached for this target
+    this.ensureListenersForTarget(target)
 
     return () => {
       this.unregister(id)
@@ -115,110 +137,115 @@ export class HotkeyManager {
    * Unregisters a hotkey by its registration ID.
    */
   private unregister(id: string): void {
+    const registration = this.registrations.get(id)
+    if (!registration) {
+      return
+    }
+
+    const target = registration.target
+
+    // Remove registration
     this.registrations.delete(id)
 
-    // Remove listeners if no more registrations
-    if (this.registrations.size === 0) {
-      this.removeListeners()
+    // Remove from target registrations tracking
+    const targetRegs = this.targetRegistrations.get(target)
+    if (targetRegs) {
+      targetRegs.delete(id)
+      // If no more registrations for this target, remove listeners
+      if (targetRegs.size === 0) {
+        this.removeListenersForTarget(target)
+      }
     }
   }
 
   /**
-   * Ensures event listeners are attached.
+   * Ensures event listeners are attached for a specific target.
    */
-  private ensureListeners(): void {
+  private ensureListenersForTarget(
+    target: HTMLElement | Document | Window,
+  ): void {
     if (typeof document === 'undefined') {
       return // SSR safety
     }
 
-    if (!this.keydownListener) {
-      this.keydownListener = this.handleKeyDown.bind(this)
-      document.addEventListener('keydown', this.keydownListener)
+    // Skip if listeners already exist for this target
+    if (this.targetListeners.has(target)) {
+      return
     }
 
-    if (!this.keyupListener) {
-      this.keyupListener = this.handleKeyUp.bind(this)
-      document.addEventListener('keyup', this.keyupListener)
-    }
+    const keydownHandler = this.createTargetKeyDownHandler(target)
+    const keyupHandler = this.createTargetKeyUpHandler(target)
+
+    target.addEventListener('keydown', keydownHandler as EventListener)
+    target.addEventListener('keyup', keyupHandler as EventListener)
+
+    this.targetListeners.set(target, {
+      keydown: keydownHandler,
+      keyup: keyupHandler,
+    })
   }
 
   /**
-   * Removes event listeners.
+   * Removes event listeners for a specific target.
    */
-  private removeListeners(): void {
+  private removeListenersForTarget(
+    target: HTMLElement | Document | Window,
+  ): void {
     if (typeof document === 'undefined') {
       return
     }
 
-    if (this.keydownListener) {
-      document.removeEventListener('keydown', this.keydownListener)
-      this.keydownListener = null
+    const listeners = this.targetListeners.get(target)
+    if (!listeners) {
+      return
     }
 
-    if (this.keyupListener) {
-      document.removeEventListener('keyup', this.keyupListener)
-      this.keyupListener = null
-    }
+    target.removeEventListener('keydown', listeners.keydown as EventListener)
+    target.removeEventListener('keyup', listeners.keyup as EventListener)
+
+    this.targetListeners.delete(target)
+    this.targetRegistrations.delete(target)
   }
 
   /**
-   * Handles keydown events.
+   * Processes keyboard events for a specific target and event type.
    */
-  private handleKeyDown(event: KeyboardEvent): void {
-    for (const registration of this.registrations.values()) {
+  private processTargetEvent(
+    event: KeyboardEvent,
+    target: HTMLElement | Document | Window,
+    eventType: 'keydown' | 'keyup',
+  ): void {
+    const targetRegs = this.targetRegistrations.get(target)
+    if (!targetRegs) {
+      return
+    }
+
+    for (const id of targetRegs) {
+      const registration = this.registrations.get(id)
+      if (!registration) {
+        continue
+      }
+
+      // Check if event originated from or bubbled to this target
+      if (!this.isEventForTarget(event, target)) {
+        continue
+      }
+
       if (!registration.options.enabled) {
         continue
       }
 
-      if (registration.options.eventType !== 'keydown') {
-        continue
-      }
-
-      // Check if requireReset is active and the hotkey has already fired
-      if (registration.options.requireReset && registration.hasFired) {
-        continue
-      }
-
-      if (
-        matchesKeyboardEvent(
-          event,
-          registration.parsedHotkey,
-          registration.options.platform,
-        )
-      ) {
-        if (registration.options.preventDefault) {
-          event.preventDefault()
-        }
-        if (registration.options.stopPropagation) {
-          event.stopPropagation()
+      // Handle keydown events
+      if (eventType === 'keydown') {
+        if (registration.options.eventType !== 'keydown') {
+          continue
         }
 
-        const context: HotkeyCallbackContext = {
-          hotkey: registration.hotkey,
-          parsedHotkey: registration.parsedHotkey,
+        // Check if requireReset is active and the hotkey has already fired
+        if (registration.options.requireReset && registration.hasFired) {
+          continue
         }
 
-        registration.callback(event, context)
-
-        // Mark as fired if requireReset is enabled
-        if (registration.options.requireReset) {
-          registration.hasFired = true
-        }
-      }
-    }
-  }
-
-  /**
-   * Handles keyup events.
-   */
-  private handleKeyUp(event: KeyboardEvent): void {
-    // Handle keyup registrations
-    for (const registration of this.registrations.values()) {
-      if (!registration.options.enabled) {
-        continue
-      }
-
-      if (registration.options.eventType === 'keyup') {
         if (
           matchesKeyboardEvent(
             event,
@@ -226,30 +253,110 @@ export class HotkeyManager {
             registration.options.platform,
           )
         ) {
-          if (registration.options.preventDefault) {
-            event.preventDefault()
-          }
-          if (registration.options.stopPropagation) {
-            event.stopPropagation()
-          }
+          this.executeHotkeyCallback(registration, event)
 
-          const context: HotkeyCallbackContext = {
-            hotkey: registration.hotkey,
-            parsedHotkey: registration.parsedHotkey,
+          // Mark as fired if requireReset is enabled
+          if (registration.options.requireReset) {
+            registration.hasFired = true
           }
-
-          registration.callback(event, context)
         }
       }
+      // Handle keyup events
+      else {
+        if (registration.options.eventType === 'keyup') {
+          if (
+            matchesKeyboardEvent(
+              event,
+              registration.parsedHotkey,
+              registration.options.platform,
+            )
+          ) {
+            this.executeHotkeyCallback(registration, event)
+          }
+        }
 
-      // Reset hasFired when any key in the hotkey is released
-      if (registration.options.requireReset && registration.hasFired) {
-        if (this.shouldResetRegistration(registration, event)) {
-          registration.hasFired = false
+        // Reset hasFired when any key in the hotkey is released
+        if (registration.options.requireReset && registration.hasFired) {
+          if (this.shouldResetRegistration(registration, event)) {
+            registration.hasFired = false
+          }
         }
       }
     }
   }
+
+  /**
+   * Executes a hotkey callback with proper event handling.
+   */
+  private executeHotkeyCallback(
+    registration: HotkeyRegistration,
+    event: KeyboardEvent,
+  ): void {
+    if (registration.options.preventDefault) {
+      event.preventDefault()
+    }
+    if (registration.options.stopPropagation) {
+      event.stopPropagation()
+    }
+
+    const context: HotkeyCallbackContext = {
+      hotkey: registration.hotkey,
+      parsedHotkey: registration.parsedHotkey,
+    }
+
+    registration.callback(event, context)
+  }
+
+  /**
+   * Creates a keydown handler for a specific target.
+   */
+  private createTargetKeyDownHandler(
+    target: HTMLElement | Document | Window,
+  ): (event: KeyboardEvent) => void {
+    return (event: KeyboardEvent) => {
+      this.processTargetEvent(event, target, 'keydown')
+    }
+  }
+
+  /**
+   * Creates a keyup handler for a specific target.
+   */
+  private createTargetKeyUpHandler(
+    target: HTMLElement | Document | Window,
+  ): (event: KeyboardEvent) => void {
+    return (event: KeyboardEvent) => {
+      this.processTargetEvent(event, target, 'keyup')
+    }
+  }
+
+  /**
+   * Checks if an event is for the given target (originated from or bubbled to it).
+   */
+  private isEventForTarget(
+    event: KeyboardEvent,
+    target: HTMLElement | Document | Window,
+  ): boolean {
+    // For Document and Window, check if currentTarget matches
+    if (target === document || target === window) {
+      return event.currentTarget === target
+    }
+
+    // For HTMLElement, check if event originated from or bubbled to the element
+    if (target instanceof HTMLElement) {
+      // Check if the event's currentTarget is the target (capturing/bubbling)
+      if (event.currentTarget === target) {
+        return true
+      }
+
+      // Check if the event's target is a descendant of our target
+      if (event.target instanceof Node && target.contains(event.target)) {
+        return true
+      }
+    }
+
+    return false
+  }
+
 
   /**
    * Determines if a registration should be reset based on the keyup event.
@@ -306,8 +413,14 @@ export class HotkeyManager {
    * Destroys the manager and removes all listeners.
    */
   destroy(): void {
-    this.removeListeners()
+    // Remove all target listeners
+    for (const target of this.targetListeners.keys()) {
+      this.removeListenersForTarget(target)
+    }
+
     this.registrations.clear()
+    this.targetListeners.clear()
+    this.targetRegistrations.clear()
   }
 }
 
