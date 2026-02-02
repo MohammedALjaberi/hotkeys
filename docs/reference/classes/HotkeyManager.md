@@ -34,7 +34,7 @@ unregister()
 destroy(): void;
 ```
 
-Defined in: [manager.ts:308](https://github.com/TanStack/keys/blob/main/packages/keys/src/manager.ts#L308)
+Defined in: [manager.ts:459](https://github.com/TanStack/keys/blob/main/packages/keys/src/manager.ts#L459)
 
 Destroys the manager and removes all listeners.
 
@@ -50,7 +50,7 @@ Destroys the manager and removes all listeners.
 getRegistrationCount(): number;
 ```
 
-Defined in: [manager.ts:289](https://github.com/TanStack/keys/blob/main/packages/keys/src/manager.ts#L289)
+Defined in: [manager.ts:440](https://github.com/TanStack/keys/blob/main/packages/keys/src/manager.ts#L440)
 
 Gets the number of registered hotkeys.
 
@@ -66,7 +66,7 @@ Gets the number of registered hotkeys.
 isRegistered(hotkey): boolean;
 ```
 
-Defined in: [manager.ts:296](https://github.com/TanStack/keys/blob/main/packages/keys/src/manager.ts#L296)
+Defined in: [manager.ts:447](https://github.com/TanStack/keys/blob/main/packages/keys/src/manager.ts#L447)
 
 Checks if a specific hotkey is registered.
 
@@ -91,7 +91,7 @@ register(
    options): () => void;
 ```
 
-Defined in: [manager.ts:80](https://github.com/TanStack/keys/blob/main/packages/keys/src/manager.ts#L80)
+Defined in: [manager.ts:89](https://github.com/TanStack/keys/blob/main/packages/keys/src/manager.ts#L89)
 
 Registers a hotkey handler.
 
@@ -135,7 +135,7 @@ A function to unregister the hotkey
 static getInstance(): HotkeyManager;
 ```
 
-Defined in: [manager.ts:55](https://github.com/TanStack/keys/blob/main/packages/keys/src/manager.ts#L55)
+Defined in: [manager.ts:64](https://github.com/TanStack/keys/blob/main/packages/keys/src/manager.ts#L64)
 
 Gets the singleton instance of HotkeyManager.
 
@@ -151,7 +151,7 @@ Gets the singleton instance of HotkeyManager.
 static resetInstance(): void;
 ```
 
-Defined in: [manager.ts:65](https://github.com/TanStack/keys/blob/main/packages/keys/src/manager.ts#L65)
+Defined in: [manager.ts:74](https://github.com/TanStack/keys/blob/main/packages/keys/src/manager.ts#L74)
 
 Resets the singleton instance. Useful for testing.
 

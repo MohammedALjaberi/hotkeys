@@ -39,6 +39,18 @@ The event type to listen for. Defaults to 'keydown'
 
 ***
 
+### ignoreInputs?
+
+```ts
+optional ignoreInputs: boolean;
+```
+
+Defined in: [types.ts:413](https://github.com/TanStack/keys/blob/main/packages/keys/src/types.ts#L413)
+
+Whether to ignore hotkeys when keyboard events originate from input-like elements (input, textarea, select, contenteditable). Defaults to true
+
+***
+
 ### platform?
 
 ```ts
@@ -84,3 +96,15 @@ optional stopPropagation: boolean;
 Defined in: [types.ts:403](https://github.com/TanStack/keys/blob/main/packages/keys/src/types.ts#L403)
 
 Stop event propagation when the hotkey matches
+
+***
+
+### target?
+
+```ts
+optional target: HTMLElement | Document | Window | null;
+```
+
+Defined in: [types.ts:415](https://github.com/TanStack/keys/blob/main/packages/keys/src/types.ts#L415)
+
+The DOM element to attach the event listener to. Defaults to document.

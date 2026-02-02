@@ -9,7 +9,7 @@ Defined in: [useHotkey.ts:10](https://github.com/TanStack/keys/blob/main/package
 
 ## Extends
 
-- `Omit`\<`HotkeyOptions`, `"enabled"`\>
+- `Omit`\<`HotkeyOptions`, `"enabled"` \| `"target"`\>
 
 ## Properties
 
@@ -22,3 +22,20 @@ optional enabled: boolean;
 Defined in: [useHotkey.ts:12](https://github.com/TanStack/keys/blob/main/packages/react-keys/src/useHotkey.ts#L12)
 
 Whether the hotkey is enabled. Defaults to true.
+
+***
+
+### target?
+
+```ts
+optional target: 
+  | HTMLElement
+  | RefObject<HTMLElement | null>
+  | Document
+  | Window
+  | null;
+```
+
+Defined in: [useHotkey.ts:14](https://github.com/TanStack/keys/blob/main/packages/react-keys/src/useHotkey.ts#L14)
+
+The DOM element or React ref to attach the event listener to. Defaults to document.
