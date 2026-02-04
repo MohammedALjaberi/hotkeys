@@ -1,12 +1,12 @@
 import { Store } from '@tanstack/store'
 import { detectPlatform } from './constants'
 import {
-  keyboardEventToHotkey,
-  isModifierKey,
-  hasNonModifierKey,
   convertToModFormat,
+  hasNonModifierKey,
+  isModifierKey,
+  keyboardEventToHotkey,
 } from './parse'
-import { Hotkey } from './types'
+import type { Hotkey } from './types'
 
 /**
  * State interface for the HotkeyRecorder.
@@ -79,13 +79,13 @@ export class HotkeyRecorder {
     recordedHotkey: null,
   })
 
-  private keydownHandler: ((event: KeyboardEvent) => void) | null = null
-  private options: HotkeyRecorderOptions
-  private platform: 'mac' | 'windows' | 'linux'
+  #keydownHandler: ((event: KeyboardEvent) => void) | null = null
+  #options: HotkeyRecorderOptions
+  #platform: 'mac' | 'windows' | 'linux'
 
   constructor(options: HotkeyRecorderOptions) {
-    this.options = options
-    this.platform = detectPlatform()
+    this.#options = options
+    this.#platform = detectPlatform()
   }
 
   /**
@@ -93,8 +93,8 @@ export class HotkeyRecorder {
    * This allows framework adapters to sync callback changes without recreating the recorder.
    */
   setOptions(options: Partial<HotkeyRecorderOptions>): void {
-    this.options = {
-      ...this.options,
+    this.#options = {
+      ...this.#options,
       ...options,
     }
   }
@@ -108,7 +108,7 @@ export class HotkeyRecorder {
    */
   start(): void {
     // Prevent starting recording if already recording
-    if (this.keydownHandler) {
+    if (this.#keydownHandler) {
       return
     }
 
@@ -121,7 +121,7 @@ export class HotkeyRecorder {
     // Create keydown handler
     const handler = (event: KeyboardEvent) => {
       // Check if we're still recording (handler might be called after stop/cancel)
-      if (!this.keydownHandler) {
+      if (!this.#keydownHandler) {
         return
       }
 
@@ -142,8 +142,8 @@ export class HotkeyRecorder {
           !event.altKey &&
           !event.metaKey
         ) {
-          this.options.onClear?.()
-          this.options.onRecord('' as Hotkey)
+          this.#options.onClear?.()
+          this.#options.onRecord('' as Hotkey)
           this.stop()
           return
         }
@@ -158,15 +158,15 @@ export class HotkeyRecorder {
       const hotkey = keyboardEventToHotkey(event)
 
       // Always convert to Mod format for portability
-      const finalHotkey = convertToModFormat(hotkey, this.platform)
+      const finalHotkey = convertToModFormat(hotkey, this.#platform)
 
       // Validate: must have at least one non-modifier key
-      if (hasNonModifierKey(finalHotkey, this.platform)) {
+      if (hasNonModifierKey(finalHotkey, this.#platform)) {
         // Remove listener FIRST to prevent any additional events
-        const handlerToRemove = this.keydownHandler
+        const handlerToRemove = this.#keydownHandler as ((event: KeyboardEvent) => void) | null
         if (handlerToRemove) {
-          this.removeListener(handlerToRemove)
-          this.keydownHandler = null
+          this.#removeListener(handlerToRemove)
+          this.#keydownHandler = null
         }
 
         // Update store state immediately
@@ -176,12 +176,12 @@ export class HotkeyRecorder {
         }))
 
         // Call callback AFTER listener is removed and state is set
-        this.options.onRecord(finalHotkey)
+        this.#options.onRecord(finalHotkey)
       }
     }
 
-    this.keydownHandler = handler
-    this.addListener(handler)
+    this.#keydownHandler = handler
+    this.#addListener(handler)
   }
 
   /**
@@ -191,9 +191,9 @@ export class HotkeyRecorder {
    */
   stop(): void {
     // Remove event listener immediately
-    if (this.keydownHandler) {
-      this.removeListener(this.keydownHandler)
-      this.keydownHandler = null
+    if (this.#keydownHandler) {
+      this.#removeListener(this.#keydownHandler)
+      this.#keydownHandler = null
     }
 
     // Update store state
@@ -211,9 +211,9 @@ export class HotkeyRecorder {
    */
   cancel(): void {
     // Remove event listener immediately
-    if (this.keydownHandler) {
-      this.removeListener(this.keydownHandler)
-      this.keydownHandler = null
+    if (this.#keydownHandler) {
+      this.#removeListener(this.#keydownHandler)
+      this.#keydownHandler = null
     }
 
     // Update store state
@@ -223,13 +223,13 @@ export class HotkeyRecorder {
     }))
 
     // Call cancel callback
-    this.options.onCancel?.()
+    this.#options.onCancel?.()
   }
 
   /**
    * Adds the keydown event listener to the document.
    */
-  private addListener(handler: (event: KeyboardEvent) => void): void {
+  #addListener(handler: (event: KeyboardEvent) => void): void {
     if (typeof document === 'undefined') {
       return // SSR safety
     }
@@ -240,7 +240,7 @@ export class HotkeyRecorder {
   /**
    * Removes the keydown event listener from the document.
    */
-  private removeListener(handler: (event: KeyboardEvent) => void): void {
+  #removeListener(handler: (event: KeyboardEvent) => void): void {
     if (typeof document === 'undefined') {
       return
     }

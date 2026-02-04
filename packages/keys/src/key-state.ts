@@ -61,7 +61,7 @@ export type KeyStateListener = (keys: Array<string>) => void
  * ```
  */
 export class KeyStateTracker {
-  private static instance: KeyStateTracker | null = null
+  static #instance: KeyStateTracker | null = null
 
   /**
    * The TanStack Store instance containing the tracker state.
@@ -71,70 +71,70 @@ export class KeyStateTracker {
     getDefaultKeyStateTrackerState(),
   )
 
-  private heldKeysSet: Set<string> = new Set()
-  private keydownListener: ((event: KeyboardEvent) => void) | null = null
-  private keyupListener: ((event: KeyboardEvent) => void) | null = null
-  private blurListener: (() => void) | null = null
+  #heldKeysSet: Set<string> = new Set()
+  #keydownListener: ((event: KeyboardEvent) => void) | null = null
+  #keyupListener: ((event: KeyboardEvent) => void) | null = null
+  #blurListener: (() => void) | null = null
 
   private constructor() {
-    this.setupListeners()
+    this.#setupListeners()
   }
 
   /**
    * Gets the singleton instance of KeyStateTracker.
    */
   static getInstance(): KeyStateTracker {
-    if (!KeyStateTracker.instance) {
-      KeyStateTracker.instance = new KeyStateTracker()
+    if (!KeyStateTracker.#instance) {
+      KeyStateTracker.#instance = new KeyStateTracker()
     }
-    return KeyStateTracker.instance
+    return KeyStateTracker.#instance
   }
 
   /**
    * Resets the singleton instance. Useful for testing.
    */
   static resetInstance(): void {
-    if (KeyStateTracker.instance) {
-      KeyStateTracker.instance.destroy()
-      KeyStateTracker.instance = null
+    if (KeyStateTracker.#instance) {
+      KeyStateTracker.#instance.destroy()
+      KeyStateTracker.#instance = null
     }
   }
 
   /**
    * Sets up the keyboard event listeners.
    */
-  private setupListeners(): void {
+  #setupListeners(): void {
     if (typeof document === 'undefined') {
       return // SSR safety
     }
 
-    this.keydownListener = (event: KeyboardEvent) => {
+    this.#keydownListener = (event: KeyboardEvent) => {
       const key = normalizeKeyName(event.key)
-      if (!this.heldKeysSet.has(key)) {
-        this.heldKeysSet.add(key)
+      if (!this.#heldKeysSet.has(key)) {
+        this.#heldKeysSet.add(key)
         this.#syncState()
       }
     }
 
-    this.keyupListener = (event: KeyboardEvent) => {
+    this.#keyupListener = (event: KeyboardEvent) => {
       const key = normalizeKeyName(event.key)
-      if (this.heldKeysSet.has(key)) {
-        this.heldKeysSet.delete(key)
+      if (this.#heldKeysSet.has(key)) {
+        this.#heldKeysSet.delete(key)
         this.#syncState()
       }
     }
 
     // Clear all keys when window loses focus (keys might be released while not focused)
-    this.blurListener = () => {
-      if (this.heldKeysSet.size > 0) {
-        this.heldKeysSet.clear()
+    this.#blurListener = () => {
+      if (this.#heldKeysSet.size > 0) {
+        this.#heldKeysSet.clear()
         this.#syncState()
       }
     }
 
-    document.addEventListener('keydown', this.keydownListener)
-    document.addEventListener('keyup', this.keyupListener)
-    window.addEventListener('blur', this.blurListener)
+    document.addEventListener('keydown', this.#keydownListener)
+    document.addEventListener('keyup', this.#keyupListener)
+    window.addEventListener('blur', this.#blurListener)
   }
 
   /**
@@ -142,31 +142,31 @@ export class KeyStateTracker {
    */
   #syncState(): void {
     this.store.setState(() => ({
-      heldKeys: Array.from(this.heldKeysSet),
+      heldKeys: Array.from(this.#heldKeysSet),
     }))
   }
 
   /**
    * Removes the keyboard event listeners.
    */
-  private removeListeners(): void {
+  #removeListeners(): void {
     if (typeof document === 'undefined') {
       return
     }
 
-    if (this.keydownListener) {
-      document.removeEventListener('keydown', this.keydownListener)
-      this.keydownListener = null
+    if (this.#keydownListener) {
+      document.removeEventListener('keydown', this.#keydownListener)
+      this.#keydownListener = null
     }
 
-    if (this.keyupListener) {
-      document.removeEventListener('keyup', this.keyupListener)
-      this.keyupListener = null
+    if (this.#keyupListener) {
+      document.removeEventListener('keyup', this.#keyupListener)
+      this.#keyupListener = null
     }
 
-    if (this.blurListener) {
-      window.removeEventListener('blur', this.blurListener)
-      this.blurListener = null
+    if (this.#blurListener) {
+      window.removeEventListener('blur', this.#blurListener)
+      this.#blurListener = null
     }
   }
 
@@ -187,7 +187,7 @@ export class KeyStateTracker {
    */
   isKeyHeld(key: string): boolean {
     const normalizedKey = normalizeKeyName(key)
-    return this.heldKeysSet.has(normalizedKey)
+    return this.#heldKeysSet.has(normalizedKey)
   }
 
   /**
@@ -231,8 +231,8 @@ export class KeyStateTracker {
    * Destroys the tracker and removes all listeners.
    */
   destroy(): void {
-    this.removeListeners()
-    this.heldKeysSet.clear()
+    this.#removeListeners()
+    this.#heldKeysSet.clear()
     this.store.setState(() => getDefaultKeyStateTrackerState())
   }
 }

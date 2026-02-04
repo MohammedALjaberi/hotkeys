@@ -54,43 +54,41 @@ function generateId(): string {
  * ```
  */
 export class HotkeyManager {
-  private static instance: HotkeyManager | null = null
+  static #instance: HotkeyManager | null = null
 
-  private registrations: Map<string, HotkeyRegistration> = new Map()
-  private platform: 'mac' | 'windows' | 'linux'
-  private targetListeners: Map<
+  #registrations: Map<string, HotkeyRegistration> = new Map()
+  #platform: 'mac' | 'windows' | 'linux'
+  #targetListeners: Map<
     HTMLElement | Document | Window,
     {
       keydown: (event: KeyboardEvent) => void
       keyup: (event: KeyboardEvent) => void
     }
   > = new Map()
-  private targetRegistrations: Map<
-    HTMLElement | Document | Window,
-    Set<string>
-  > = new Map()
+  #targetRegistrations: Map<HTMLElement | Document | Window, Set<string>> =
+    new Map()
 
   private constructor() {
-    this.platform = detectPlatform()
+    this.#platform = detectPlatform()
   }
 
   /**
    * Gets the singleton instance of HotkeyManager.
    */
   static getInstance(): HotkeyManager {
-    if (!HotkeyManager.instance) {
-      HotkeyManager.instance = new HotkeyManager()
+    if (!HotkeyManager.#instance) {
+      HotkeyManager.#instance = new HotkeyManager()
     }
-    return HotkeyManager.instance
+    return HotkeyManager.#instance
   }
 
   /**
    * Resets the singleton instance. Useful for testing.
    */
   static resetInstance(): void {
-    if (HotkeyManager.instance) {
-      HotkeyManager.instance.destroy()
-      HotkeyManager.instance = null
+    if (HotkeyManager.#instance) {
+      HotkeyManager.#instance.destroy()
+      HotkeyManager.#instance = null
     }
   }
 
@@ -125,7 +123,7 @@ export class HotkeyManager {
     options: HotkeyOptions = {},
   ): HotkeyRegistrationHandle {
     const id = generateId()
-    const platform = options.platform ?? this.platform
+    const platform = options.platform ?? this.#platform
     const parsedHotkey = parseHotkey(hotkey, platform)
 
     // Resolve target: default to document if not provided or null
@@ -147,16 +145,16 @@ export class HotkeyManager {
       target,
     }
 
-    this.registrations.set(id, registration)
+    this.#registrations.set(id, registration)
 
     // Track registration for this target
-    if (!this.targetRegistrations.has(target)) {
-      this.targetRegistrations.set(target, new Set())
+    if (!this.#targetRegistrations.has(target)) {
+      this.#targetRegistrations.set(target, new Set())
     }
-    this.targetRegistrations.get(target)!.add(id)
+    this.#targetRegistrations.get(target)!.add(id)
 
     // Ensure listeners are attached for this target
-    this.ensureListenersForTarget(target)
+    this.#ensureListenersForTarget(target)
 
     // Create and return the handle
     const manager = this
@@ -165,26 +163,26 @@ export class HotkeyManager {
         return id
       },
       unregister: () => {
-        manager.unregister(id)
+        manager.#unregister(id)
       },
       get callback() {
-        const reg = manager.registrations.get(id)
+        const reg = manager.#registrations.get(id)
         return reg?.callback ?? callback
       },
       set callback(newCallback: HotkeyCallback) {
-        const reg = manager.registrations.get(id)
+        const reg = manager.#registrations.get(id)
         if (reg) {
           reg.callback = newCallback
         }
       },
       setOptions: (newOptions: Partial<HotkeyOptions>) => {
-        const reg = manager.registrations.get(id)
+        const reg = manager.#registrations.get(id)
         if (reg) {
           reg.options = { ...reg.options, ...newOptions }
         }
       },
       get isActive() {
-        return manager.registrations.has(id)
+        return manager.#registrations.has(id)
       },
     }
 
@@ -194,8 +192,8 @@ export class HotkeyManager {
   /**
    * Unregisters a hotkey by its registration ID.
    */
-  private unregister(id: string): void {
-    const registration = this.registrations.get(id)
+  #unregister(id: string): void {
+    const registration = this.#registrations.get(id)
     if (!registration) {
       return
     }
@@ -203,15 +201,15 @@ export class HotkeyManager {
     const target = registration.target
 
     // Remove registration
-    this.registrations.delete(id)
+    this.#registrations.delete(id)
 
     // Remove from target registrations tracking
-    const targetRegs = this.targetRegistrations.get(target)
+    const targetRegs = this.#targetRegistrations.get(target)
     if (targetRegs) {
       targetRegs.delete(id)
       // If no more registrations for this target, remove listeners
       if (targetRegs.size === 0) {
-        this.removeListenersForTarget(target)
+        this.#removeListenersForTarget(target)
       }
     }
   }
@@ -219,25 +217,23 @@ export class HotkeyManager {
   /**
    * Ensures event listeners are attached for a specific target.
    */
-  private ensureListenersForTarget(
-    target: HTMLElement | Document | Window,
-  ): void {
+  #ensureListenersForTarget(target: HTMLElement | Document | Window): void {
     if (typeof document === 'undefined') {
       return // SSR safety
     }
 
     // Skip if listeners already exist for this target
-    if (this.targetListeners.has(target)) {
+    if (this.#targetListeners.has(target)) {
       return
     }
 
-    const keydownHandler = this.createTargetKeyDownHandler(target)
-    const keyupHandler = this.createTargetKeyUpHandler(target)
+    const keydownHandler = this.#createTargetKeyDownHandler(target)
+    const keyupHandler = this.#createTargetKeyUpHandler(target)
 
     target.addEventListener('keydown', keydownHandler as EventListener)
     target.addEventListener('keyup', keyupHandler as EventListener)
 
-    this.targetListeners.set(target, {
+    this.#targetListeners.set(target, {
       keydown: keydownHandler,
       keyup: keyupHandler,
     })
@@ -246,14 +242,12 @@ export class HotkeyManager {
   /**
    * Removes event listeners for a specific target.
    */
-  private removeListenersForTarget(
-    target: HTMLElement | Document | Window,
-  ): void {
+  #removeListenersForTarget(target: HTMLElement | Document | Window): void {
     if (typeof document === 'undefined') {
       return
     }
 
-    const listeners = this.targetListeners.get(target)
+    const listeners = this.#targetListeners.get(target)
     if (!listeners) {
       return
     }
@@ -261,31 +255,31 @@ export class HotkeyManager {
     target.removeEventListener('keydown', listeners.keydown as EventListener)
     target.removeEventListener('keyup', listeners.keyup as EventListener)
 
-    this.targetListeners.delete(target)
-    this.targetRegistrations.delete(target)
+    this.#targetListeners.delete(target)
+    this.#targetRegistrations.delete(target)
   }
 
   /**
    * Processes keyboard events for a specific target and event type.
    */
-  private processTargetEvent(
+  #processTargetEvent(
     event: KeyboardEvent,
     target: HTMLElement | Document | Window,
     eventType: 'keydown' | 'keyup',
   ): void {
-    const targetRegs = this.targetRegistrations.get(target)
+    const targetRegs = this.#targetRegistrations.get(target)
     if (!targetRegs) {
       return
     }
 
     for (const id of targetRegs) {
-      const registration = this.registrations.get(id)
+      const registration = this.#registrations.get(id)
       if (!registration) {
         continue
       }
 
       // Check if event originated from or bubbled to this target
-      if (!this.isEventForTarget(event, target)) {
+      if (!this.#isEventForTarget(event, target)) {
         continue
       }
 
@@ -295,7 +289,7 @@ export class HotkeyManager {
 
       // Check if we should ignore input elements (defaults to true)
       if (registration.options.ignoreInputs !== false) {
-        if (this.isInputElement(event.target)) {
+        if (this.#isInputElement(event.target)) {
           // Don't ignore if the hotkey is explicitly scoped to this input element
           if (event.target !== registration.target) {
             continue
@@ -321,7 +315,7 @@ export class HotkeyManager {
             registration.options.platform,
           )
         ) {
-          this.executeHotkeyCallback(registration, event)
+          this.#executeHotkeyCallback(registration, event)
 
           // Mark as fired if requireReset is enabled
           if (registration.options.requireReset) {
@@ -339,13 +333,13 @@ export class HotkeyManager {
               registration.options.platform,
             )
           ) {
-            this.executeHotkeyCallback(registration, event)
+            this.#executeHotkeyCallback(registration, event)
           }
         }
 
         // Reset hasFired when any key in the hotkey is released
         if (registration.options.requireReset && registration.hasFired) {
-          if (this.shouldResetRegistration(registration, event)) {
+          if (this.#shouldResetRegistration(registration, event)) {
             registration.hasFired = false
           }
         }
@@ -356,7 +350,7 @@ export class HotkeyManager {
   /**
    * Executes a hotkey callback with proper event handling.
    */
-  private executeHotkeyCallback(
+  #executeHotkeyCallback(
     registration: HotkeyRegistration,
     event: KeyboardEvent,
   ): void {
@@ -378,29 +372,29 @@ export class HotkeyManager {
   /**
    * Creates a keydown handler for a specific target.
    */
-  private createTargetKeyDownHandler(
+  #createTargetKeyDownHandler(
     target: HTMLElement | Document | Window,
   ): (event: KeyboardEvent) => void {
     return (event: KeyboardEvent) => {
-      this.processTargetEvent(event, target, 'keydown')
+      this.#processTargetEvent(event, target, 'keydown')
     }
   }
 
   /**
    * Creates a keyup handler for a specific target.
    */
-  private createTargetKeyUpHandler(
+  #createTargetKeyUpHandler(
     target: HTMLElement | Document | Window,
   ): (event: KeyboardEvent) => void {
     return (event: KeyboardEvent) => {
-      this.processTargetEvent(event, target, 'keyup')
+      this.#processTargetEvent(event, target, 'keyup')
     }
   }
 
   /**
    * Checks if an event is for the given target (originated from or bubbled to it).
    */
-  private isEventForTarget(
+  #isEventForTarget(
     event: KeyboardEvent,
     target: HTMLElement | Document | Window,
   ): boolean {
@@ -434,7 +428,7 @@ export class HotkeyManager {
    * - HTMLSelectElement
    * - Elements with contentEditable enabled
    */
-  private isInputElement(element: EventTarget | null): boolean {
+  #isInputElement(element: EventTarget | null): boolean {
     if (!element) {
       return false
     }
@@ -462,7 +456,7 @@ export class HotkeyManager {
   /**
    * Determines if a registration should be reset based on the keyup event.
    */
-  private shouldResetRegistration(
+  #shouldResetRegistration(
     registration: HotkeyRegistration,
     event: KeyboardEvent,
   ): boolean {
@@ -495,7 +489,7 @@ export class HotkeyManager {
    * Gets the number of registered hotkeys.
    */
   getRegistrationCount(): number {
-    return this.registrations.size
+    return this.#registrations.size
   }
 
   /**
@@ -509,7 +503,7 @@ export class HotkeyManager {
     hotkey: Hotkey,
     target?: HTMLElement | Document | Window,
   ): boolean {
-    for (const registration of this.registrations.values()) {
+    for (const registration of this.#registrations.values()) {
       if (registration.hotkey === hotkey) {
         // If target is specified, both must match
         if (target === undefined || registration.target === target) {
@@ -525,13 +519,13 @@ export class HotkeyManager {
    */
   destroy(): void {
     // Remove all target listeners
-    for (const target of this.targetListeners.keys()) {
-      this.removeListenersForTarget(target)
+    for (const target of this.#targetListeners.keys()) {
+      this.#removeListenersForTarget(target)
     }
 
-    this.registrations.clear()
-    this.targetListeners.clear()
-    this.targetRegistrations.clear()
+    this.#registrations.clear()
+    this.#targetListeners.clear()
+    this.#targetRegistrations.clear()
   }
 }
 

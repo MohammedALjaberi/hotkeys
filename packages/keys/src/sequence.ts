@@ -58,33 +58,33 @@ interface SequenceRegistration {
  * ```
  */
 export class SequenceManager {
-  private static instance: SequenceManager | null = null
+  static #instance: SequenceManager | null = null
 
-  private registrations: Map<string, SequenceRegistration> = new Map()
-  private keydownListener: ((event: KeyboardEvent) => void) | null = null
-  private platform: 'mac' | 'windows' | 'linux'
+  #registrations: Map<string, SequenceRegistration> = new Map()
+  #keydownListener: ((event: KeyboardEvent) => void) | null = null
+  #platform: 'mac' | 'windows' | 'linux'
 
   private constructor() {
-    this.platform = detectPlatform()
+    this.#platform = detectPlatform()
   }
 
   /**
    * Gets the singleton instance of SequenceManager.
    */
   static getInstance(): SequenceManager {
-    if (!SequenceManager.instance) {
-      SequenceManager.instance = new SequenceManager()
+    if (!SequenceManager.#instance) {
+      SequenceManager.#instance = new SequenceManager()
     }
-    return SequenceManager.instance
+    return SequenceManager.#instance
   }
 
   /**
    * Resets the singleton instance. Useful for testing.
    */
   static resetInstance(): void {
-    if (SequenceManager.instance) {
-      SequenceManager.instance.destroy()
-      SequenceManager.instance = null
+    if (SequenceManager.#instance) {
+      SequenceManager.#instance.destroy()
+      SequenceManager.#instance = null
     }
   }
 
@@ -106,7 +106,7 @@ export class SequenceManager {
     }
 
     const id = generateSequenceId()
-    const platform = options.platform ?? this.platform
+    const platform = options.platform ?? this.#platform
     const parsedSequence = sequence.map((hotkey) =>
       parseHotkey(hotkey, platform),
     )
@@ -128,60 +128,60 @@ export class SequenceManager {
       lastKeyTime: 0,
     }
 
-    this.registrations.set(id, registration)
-    this.ensureListener()
+    this.#registrations.set(id, registration)
+    this.#ensureListener()
 
     return () => {
-      this.unregister(id)
+      this.#unregister(id)
     }
   }
 
   /**
    * Unregisters a sequence by its registration ID.
    */
-  private unregister(id: string): void {
-    this.registrations.delete(id)
+  #unregister(id: string): void {
+    this.#registrations.delete(id)
 
-    if (this.registrations.size === 0) {
-      this.removeListener()
+    if (this.#registrations.size === 0) {
+      this.#removeListener()
     }
   }
 
   /**
    * Ensures the keydown listener is attached.
    */
-  private ensureListener(): void {
+  #ensureListener(): void {
     if (typeof document === 'undefined') {
       return // SSR safety
     }
 
-    if (!this.keydownListener) {
-      this.keydownListener = this.handleKeyDown.bind(this)
-      document.addEventListener('keydown', this.keydownListener)
+    if (!this.#keydownListener) {
+      this.#keydownListener = this.#handleKeyDown.bind(this)
+      document.addEventListener('keydown', this.#keydownListener)
     }
   }
 
   /**
    * Removes the keydown listener.
    */
-  private removeListener(): void {
+  #removeListener(): void {
     if (typeof document === 'undefined') {
       return
     }
 
-    if (this.keydownListener) {
-      document.removeEventListener('keydown', this.keydownListener)
-      this.keydownListener = null
+    if (this.#keydownListener) {
+      document.removeEventListener('keydown', this.#keydownListener)
+      this.#keydownListener = null
     }
   }
 
   /**
    * Handles keydown events for sequence matching.
    */
-  private handleKeyDown(event: KeyboardEvent): void {
+  #handleKeyDown(event: KeyboardEvent): void {
     const now = Date.now()
 
-    for (const registration of this.registrations.values()) {
+    for (const registration of this.#registrations.values()) {
       if (!registration.options.enabled) {
         continue
       }
@@ -262,7 +262,7 @@ export class SequenceManager {
    * Resets all sequence progress.
    */
   resetAll(): void {
-    for (const registration of this.registrations.values()) {
+    for (const registration of this.#registrations.values()) {
       registration.currentIndex = 0
       registration.lastKeyTime = 0
     }
@@ -272,15 +272,15 @@ export class SequenceManager {
    * Gets the number of registered sequences.
    */
   getRegistrationCount(): number {
-    return this.registrations.size
+    return this.#registrations.size
   }
 
   /**
    * Destroys the manager and removes all listeners.
    */
   destroy(): void {
-    this.removeListener()
-    this.registrations.clear()
+    this.#removeListener()
+    this.#registrations.clear()
   }
 }
 

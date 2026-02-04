@@ -1,10 +1,11 @@
-import { useRef, useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useStore } from '@tanstack/react-store'
 import {
-  HotkeyRecorder,
-  type HotkeyRecorderOptions,
-  type Hotkey,
+  
+  HotkeyRecorder
+  
 } from '@tanstack/keys'
+import type {Hotkey, HotkeyRecorderOptions} from '@tanstack/keys';
 
 export interface ReactHotkeyRecorder {
   /** Whether recording is currently active */
