@@ -130,7 +130,8 @@ export class HotkeyManager {
 
     // Resolve target: default to document if not provided or null
     const target =
-      options.target ?? (typeof document !== 'undefined' ? document : ({} as Document))
+      options.target ??
+      (typeof document !== 'undefined' ? document : ({} as Document))
 
     const registration: HotkeyRegistration = {
       id,
@@ -504,7 +505,10 @@ export class HotkeyManager {
    * @param target - Optional target element to match (if provided, both hotkey and target must match)
    * @returns True if a matching registration exists
    */
-  isRegistered(hotkey: Hotkey, target?: HTMLElement | Document | Window): boolean {
+  isRegistered(
+    hotkey: Hotkey,
+    target?: HTMLElement | Document | Window,
+  ): boolean {
     for (const registration of this.registrations.values()) {
       if (registration.hotkey === hotkey) {
         // If target is specified, both must match

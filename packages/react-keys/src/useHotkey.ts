@@ -15,11 +15,11 @@ export interface UseHotkeyOptions extends Omit<HotkeyOptions, 'target'> {
    * Defaults to document.
    */
   target?:
-  | React.RefObject<HTMLElement | null>
-  | HTMLElement
-  | Document
-  | Window
-  | null
+    | React.RefObject<HTMLElement | null>
+    | HTMLElement
+    | Document
+    | Window
+    | null
 }
 
 /**
@@ -173,8 +173,6 @@ export function useHotkey(
 /**
  * Type guard to check if a value is a React ref-like object.
  */
-function isRef(
-  value: unknown,
-): value is React.RefObject<HTMLElement | null> {
+function isRef(value: unknown): value is React.RefObject<HTMLElement | null> {
   return value !== null && typeof value === 'object' && 'current' in value
 }

@@ -18,6 +18,7 @@ title: "@tanstack/keys"
 - [HotkeyCallbackContext](interfaces/HotkeyCallbackContext.md)
 - [HotkeyOptions](interfaces/HotkeyOptions.md)
 - [HotkeyRegistration](interfaces/HotkeyRegistration.md)
+- [HotkeyRegistrationHandle](interfaces/HotkeyRegistrationHandle.md)
 - [KeyStateTrackerState](interfaces/KeyStateTrackerState.md)
 - [ParsedHotkey](interfaces/ParsedHotkey.md)
 - [SequenceOptions](interfaces/SequenceOptions.md)

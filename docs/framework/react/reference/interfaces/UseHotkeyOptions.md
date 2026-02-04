@@ -5,25 +5,13 @@ title: UseHotkeyOptions
 
 # Interface: UseHotkeyOptions
 
-Defined in: [useHotkey.ts:10](https://github.com/TanStack/keys/blob/main/packages/react-keys/src/useHotkey.ts#L10)
+Defined in: [useHotkey.ts:11](https://github.com/TanStack/keys/blob/main/packages/react-keys/src/useHotkey.ts#L11)
 
 ## Extends
 
-- `Omit`\<`HotkeyOptions`, `"enabled"` \| `"target"`\>
+- `Omit`\<`HotkeyOptions`, `"target"`\>
 
 ## Properties
-
-### enabled?
-
-```ts
-optional enabled: boolean;
-```
-
-Defined in: [useHotkey.ts:12](https://github.com/TanStack/keys/blob/main/packages/react-keys/src/useHotkey.ts#L12)
-
-Whether the hotkey is enabled. Defaults to true.
-
-***
 
 ### target?
 
@@ -36,6 +24,8 @@ optional target:
   | null;
 ```
 
-Defined in: [useHotkey.ts:14](https://github.com/TanStack/keys/blob/main/packages/react-keys/src/useHotkey.ts#L14)
+Defined in: [useHotkey.ts:17](https://github.com/TanStack/keys/blob/main/packages/react-keys/src/useHotkey.ts#L17)
 
-The DOM element or React ref to attach the event listener to. Defaults to document.
+The DOM element to attach the event listener to.
+Can be a React ref, direct DOM element, or null.
+Defaults to document.

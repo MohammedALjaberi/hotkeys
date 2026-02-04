@@ -12,7 +12,7 @@ function useHotkey(
    options): void;
 ```
 
-Defined in: [useHotkey.ts:71](https://github.com/TanStack/keys/blob/main/packages/react-keys/src/useHotkey.ts#L71)
+Defined in: [useHotkey.ts:83](https://github.com/TanStack/keys/blob/main/packages/react-keys/src/useHotkey.ts#L83)
 
 React hook for registering a keyboard hotkey.
 
@@ -20,11 +20,16 @@ Uses the singleton HotkeyManager for efficient event handling.
 The callback receives both the keyboard event and a context object
 containing the hotkey string and parsed hotkey.
 
+This hook syncs the callback and options on every render to avoid
+stale closures, similar to TanStack Pacer's pattern. This means
+callbacks that reference React state will always have access to
+the latest values.
+
 ## Parameters
 
 ### hotkey
 
-The hotkey string (e.g., 'Mod+S', 'Escape')
+The hotkey string (e.g., 'Mod+S', 'Escape') or ParsedHotkey object
 
 `Hotkey` | `ParsedHotkey`
 
@@ -48,18 +53,21 @@ Options for the hotkey behavior
 
 ```tsx
 function SaveButton() {
-  useHotkey('Mod+S', (event, { hotkey, parsedHotkey }) => {
-    console.log(`${hotkey} was pressed`)
+  const [count, setCount] = useState(0)
+
+  // Callback always has access to latest count value
+  useHotkey('Mod+S', (event, { hotkey }) => {
+    console.log(`Save triggered, count is ${count}`)
     handleSave()
   }, { preventDefault: true })
 
-  return <button>Save</button>
+  return <button onClick={() => setCount(c => c + 1)}>Count: {count}</button>
 }
 ```
 
 ```tsx
 function Modal({ isOpen, onClose }) {
-  // Only active when modal is open
+  // enabled option is synced on every render
   useHotkey('Escape', () => {
     onClose()
   }, { enabled: isOpen })
@@ -71,11 +79,13 @@ function Modal({ isOpen, onClose }) {
 
 ```tsx
 function Editor() {
-  // Prevent repeated triggering while holding
+  const editorRef = useRef<HTMLDivElement>(null)
+
+  // Scoped to a specific element
   useHotkey('Mod+S', () => {
     save()
-  }, { preventDefault: true, requireReset: true })
+  }, { target: editorRef, preventDefault: true })
 
-  return <div>...</div>
+  return <div ref={editorRef}>...</div>
 }
 ```
